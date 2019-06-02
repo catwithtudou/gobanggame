@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <title> 五子棋</title>
+    <script type="text/javascript" src="http://ajax.microsoft.com/ajax/jquery/jquery-1.4.min.js"></script>
+    <script src="http://cdn.bootcss.com/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://cdn.bootcss.com/sockjs-client/1.1.4/sockjs.min.js"></script>
+</head>
+<body>
+<div style="margin: auto;text-align: center;">
+    <h1>Welcome to goBangGame</h1>
+</div>
+<hr/>
+<div style="margin: 0 auto;text-align: center">
+
+</div>
+<div style="margin:auto;text-align: center;" id="up">
+    当前房间玩家有:<p id="users"></p>
+</div>
+<div>
+    <button onclick="sendReady()" id="start" style="display:block;margin:0 auto;text-align: center;">准备</button>
+    <button onclick="sendUnReady()" id="end" style="display:none;margin:0 auto;text-align: center;">取消准备</button>
+    <br/>
+    <button onclick="startGame()"  id="startGame" style="display:block;margin:0 auto;text-align: center;">开始游戏</button>
+    <from id="piece" style="display: none;margin: 0 auto;text-align: center;">
+       x: <input type="text" id="x" style="width: 100px;">
+       y: <input type="text" id="y" style="width: 100px;">
+        <button onclick="sendSeat()">确定</button>
+    </from>
+    <input type="text" id="color" style="display: none;"/>
+</div>
+<hr/>
+<div id="message" style="text-align: center;"></div>
+<input type="text" th:value="${username}" id="username" style="display:none;"/>
+</body>
+<script type="text/javascript">
+   var webSocket;
+   if("WebSocket" in window){
+       webSocket=new WebSocket("ws://localhost:8080/websocket/"+document.getElementById("username").value);
+       webSocket.onopen=function () {
+           setMessageInnerHTML("连接房间成功");
+       };
+
+       webSocket.onmessage=function (ev) {
+           var receive_msg = ev.data;
+           var msg = JSON.parse(receive_msg);
+           var messageType = msg.messageType;
+           //服务端messageType 1:进入房间  2:退出房间 3.开始游戏 4.结束游戏 5.错误 6.在线人数名单
+           if (messageType == 5) {
+               var message = msg.message;
+               if(message == 1){
+                   alert("该房间人数已满,请退出房间");
+                   closeWebSocket();
+               }
+               if(message == 2){
+                   setMessageInnerHTML("此位置已有棋子,请重新选择位置");
+               }
+               if(message == 3){
+                   setMessageInnerHTML("抱歉,还没有轮到你的顺序");
+               }
+               if(message == 4){
+                   setMessageInnerHTML("部分玩家未准备");
+               }
+
+           } else if (messageType == 1) {
+               var username=msg.username;
+               setMessageInnerHTML(username+"进入房间");
+           } else if (messageType == 6){
+               var username=msg.username;
+               var otherName=msg.otherName;
+               $("#users").empty();
+               var span="<span>"+username;
+               if(otherName!=null){
+                   span+=","+otherName;
+               }
+               span+="</span>";
+               $("#users").append(span);
+           }else if(messageType == 2){
+                   var username = msg.username;
+                   var otherName = msg.otherName;
+                   $("#users").empty();
+                   $("#users").append("<span>" + otherName + "</span>");
+                   sendUnReady();
+                   $("#startGame").css("display","block");
+                   setMessageInnerHTML(username + "退出房间");
+           }else if(messageType == 3){
+               var message=msg.message;
+               var color =msg.color;
+               var sort =msg.sort;
+               $("#message").empty();
+               $("#start").css("display","none");
+               $("#end").css("display","none");
+               $("#startGame").css("display","none");
+               $("#piece").css("display","block");
+               setMessageInnerHTML("游戏开始");
+               if(color == 1){
+                   $('#color').val(color);
+                   color = "黑棋";
+               }else{
+                   $('#color').val(color);
+                   color = "白棋";
+               }
+               if(sort == 1){
+                   setMessageInnerHTML("你的棋子颜色是"+color+",这一局你先手");
+               }else{
+                   setMessageInnerHTML("你的棋子颜色是"+color+",这一局你后手");
+               }
+           }else if(messageType == 4){
+               var username=msg.username;
+               setMessageInnerHTML("游戏结束,"+username+"胜利");
+               $("#start").css("display","block");
+               $("#end").css("display","none");
+               $("#startGame").css("display","block");
+               $("#piece").css("display","none");
+           }else if(messageType == 7){
+               var color=msg.color;
+               var x=msg.x;
+               var y=msg.y;
+               if(color == 1){
+                   color = "黑";
+               }else{
+                   color = "白";
+               }
+               setMessageInnerHTML(color+":("+x+","+y+")");
+
+           }
+       };
+
+       webSocket.onclose=function () {
+           setMessageInnerHTML("连接已经关闭");
+       };
+   }else{
+       alert("你的游览器不支持 websocket");
+   }
+
+   function closeWebSocket() {
+       webSocket.close();
+   }
+
+   //将消息显示在网页上
+   function setMessageInnerHTML(innerHTML) {
+       document.getElementById('message').innerHTML+=innerHTML+'<br/>';
+   }
+   //客户端messageType 1:准备工作 2:下棋工作
+   function sendReady() {
+       var message={
+           "messageType":"1",
+           "is":"1"
+       }
+       $("#start").css("display","none");
+       $("#end").css("display","block");
+       webSocket.send(JSON.stringify(message));
+   }
+   function sendUnReady() {
+       var message={
+           "messageType":"1",
+           "is":"0"
+       }
+       $("#start").css("display","block");
+       $("#end").css("display","none");
+       webSocket.send(JSON.stringify(message));
+   }
+
+   function startGame() {
+       var message={
+           "messageType":"3"
+       }
+       webSocket.send(JSON.stringify(message));
+   }
+   
+   function sendSeat() {
+       var message={
+           "messageType":"2",
+           "x":document.getElementById('x').value,
+           "y":document.getElementById('y').value,
+           "color":document.getElementById('color').value
+       };
+   if(message.x<0||message.y<0||message.x>100||message.y>100||String(message.x).indexOf(".")>-1||String(message.y).indexOf(".")>-1)
+       {
+           $("#x").val("");
+           $("#y").val("");
+           setMessageInnerHTML("位置不合法,请重新选择");
+       }else {
+           webSocket.send(JSON.stringify(message));
+           $("#x").val("");
+           $("#y").val("");
+       }
+   }
+   
+   
+</script>
+</html>
