@@ -3,11 +3,16 @@ package red.rock.gobanggame.controller;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.Maps;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestParam;
+import red.rock.gobanggame.config.MyApplicationContextAware;
+import red.rock.gobanggame.entity.Room;
 import red.rock.gobanggame.entity.SeatRecord;
 import red.rock.gobanggame.entity.User;
 import red.rock.gobanggame.entity.UserRecord;
+import red.rock.gobanggame.service.RoomService;
+import red.rock.gobanggame.service.UserService;
 import red.rock.gobanggame.utils.GoBangUtil;
 
 import javax.servlet.http.HttpServletRequest;
@@ -29,8 +34,15 @@ import java.util.concurrent.CopyOnWriteArraySet;
  * @date 2019/6/1 14:44
  **/
 @Component
-@ServerEndpoint("/websocket/{username}")
+@ServerEndpoint("/websocket/{roomName}/{username}")
 public class WebSocket {
+
+    protected RoomService roomService=(RoomService) MyApplicationContextAware.getApplicationContext().getBean("roomService");
+
+    /**
+     * 房间号码
+     */
+    private String roomName;
 
     /**
      * WebSocket对象
@@ -68,9 +80,11 @@ public class WebSocket {
     private boolean isUser;
 
     @OnOpen
-    public void onOpen(@PathParam("username")String username,Session  session){
+    public void onOpen(@PathParam("username")String username,@PathParam("roomName")String roomName,Session  session){
+        System.out.println(111);
         this.session=session;
         this.user.setUsername(username);
+        this.roomName=roomName;
         this.isGame=false;
         //服务端messageType 1:进入房间  2:退出房间 3.开始游戏 4.结束游戏 5.错误 6.在线人数名单 7,棋子情况
         //错误 : 1:游戏人数已满  2:此位置已被选中 3:对方还没有落棋 4:部分玩家未准备
@@ -195,6 +209,16 @@ public class WebSocket {
                 map.put("messageType", 2);
                 map.put("username", user.getUsername());
                 map.put("otherName",otherName());
+                String message="1";
+                Room room=roomService.getRoom(this.roomName);
+                if(room.getUser()==this.user.getUsername()){
+                    roomService.deleteRoom(this.roomName);
+                    message="";
+                }
+                else if(room.getUser()==null&&room.getAnotherUser()==null){
+                    roomService.deleteRoom(this.roomName);
+                }
+                map.put("message",message);
                 sendMessageAll(JSON.toJSONString(map));
                 if (isGame) {
                     Map<String, Object> map1 = Maps.newHashMap();

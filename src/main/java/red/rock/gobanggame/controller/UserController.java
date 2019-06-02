@@ -37,7 +37,7 @@ public class UserController {
             response.getWriter().print("<script>alert('用户名或密码错误');history.back();</script>");
         }else {
             session.setAttribute("user", username);
-            response.getWriter().print("<script>alert('用户登陆成功');window.location='/websocket/" + username + "';</script>");
+            response.getWriter().print("<script>alert('用户登陆成功');window.location.href='/room';</script>");
 
         }
     }
@@ -55,15 +55,6 @@ public class UserController {
         return "注册成功";
     }
 
-    @RequestMapping(value = "/createRoom")
-    public String createRoom(@RequestParam("roomName")String roomName, HttpSession session)throws IOException{
-        String username= (String) session.getAttribute("user");
-        if(username==null){
-            return "请先登录";
-        }else{
-            session.setAttribute("roomName",roomName);
-            return "创建房间成功";
-        }
-    }
+
 
 }

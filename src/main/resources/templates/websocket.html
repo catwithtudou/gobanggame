@@ -33,11 +33,12 @@
 <hr/>
 <div id="message" style="text-align: center;"></div>
 <input type="text" th:value="${username}" id="username" style="display:none;"/>
+<input type="text" th:value="${roomName}" id="roomName" style="display:none;"/>
 </body>
 <script type="text/javascript">
    var webSocket;
    if("WebSocket" in window){
-       webSocket=new WebSocket("ws://localhost:8080/websocket/"+document.getElementById("username").value);
+       webSocket=new WebSocket("ws://localhost:8080/websocket/"+document.getElementById("roomName").value+"/"+document.getElementById("username").value);
        webSocket.onopen=function () {
            setMessageInnerHTML("连接房间成功");
        };
@@ -79,6 +80,12 @@
            }else if(messageType == 2){
                    var username = msg.username;
                    var otherName = msg.otherName;
+                   var message = msg.message;
+                   if(message == ""){
+                       alert("房主已退出,即将关闭房间");
+                       closeWebSocket();
+                       window.location="/room";
+                   }
                    $("#users").empty();
                    $("#users").append("<span>" + otherName + "</span>");
                    sendUnReady();
@@ -136,6 +143,7 @@
 
    function closeWebSocket() {
        webSocket.close();
+       window.location="/room";
    }
 
    //将消息显示在网页上

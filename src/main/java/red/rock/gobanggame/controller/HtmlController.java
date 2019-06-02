@@ -17,10 +17,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 public class HtmlController {
-    @RequestMapping("/websocket/{username}")
-    public String websocket(@PathVariable String username ,Model model){
+    @RequestMapping("/websocket/{roomName}/{username}")
+    public String websocket(@PathVariable String username ,@PathVariable String roomName,Model model){
         try{
             model.addAttribute("username",username);
+            model.addAttribute("roomName",roomName);
             return "websocket";
         }catch (Exception e){
             return "error";
@@ -35,4 +36,20 @@ public class HtmlController {
     public String register(){
         return "/register.html";
     }
+
+    @GetMapping("/room")
+    public String room(){
+        return "room.html";
+    }
+
+    @GetMapping("/createRoom")
+    public String createRoom(){
+        return "createRoom.html";
+    }
+
+    @GetMapping("/joinRoom")
+    public String joinRoom(){
+        return "joinRoom.html";
+    }
+
 }
