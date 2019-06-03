@@ -92,7 +92,7 @@ public class RoomService {
         if(null == room){
             flag = false;
         }
-        else if(null == room.getUser() || null == room.getAnotherUser()){
+        else if(null == room.getUser() || null  ==  room.getAnotherUser()){
             flag=false;
         }
         return flag;

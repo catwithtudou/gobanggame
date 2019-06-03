@@ -50,6 +50,11 @@ public class WebSocket {
     private static final CopyOnWriteArraySet<WebSocket> WEB_SOCKETS=new CopyOnWriteArraySet<>();
 
     /**
+     * 房间Map对象
+     */
+    private static final Map<String,CopyOnWriteArraySet> ROOM_MAP=new HashMap<>();
+
+    /**
      * 在线人数
      */
     private static  int  count=0;
@@ -302,18 +307,9 @@ public class WebSocket {
     }
 
     private String otherName(){
-        Set<String> set=new HashSet<>();
-        for(WebSocket webSocket:WEB_SOCKETS){
-            set.add(webSocket.user.getUsername());
-        }
-        Iterator iterator=set.iterator();
-        while(iterator.hasNext()){
-            String name=iterator.next().toString();
-            if(!this.user.getUsername().equals(name)){
-                return name;
-            }
-        }
-        return null;
+        Room room=roomService.getRoom(roomName);
+        String anotherName=room.getAnotherUser();
+        return anotherName;
     }
 
     private void changeSort(){
