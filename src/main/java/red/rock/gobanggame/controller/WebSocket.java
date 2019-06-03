@@ -81,7 +81,6 @@ public class WebSocket {
 
     @OnOpen
     public void onOpen(@PathParam("username")String username,@PathParam("roomName")String roomName,Session  session){
-        System.out.println(111);
         this.session=session;
         this.user.setUsername(username);
         this.roomName=roomName;
@@ -89,7 +88,7 @@ public class WebSocket {
         //服务端messageType 1:进入房间  2:退出房间 3.开始游戏 4.结束游戏 5.错误 6.在线人数名单 7,棋子情况
         //错误 : 1:游戏人数已满  2:此位置已被选中 3:对方还没有落棋 4:部分玩家未准备
         try{
-            if(WEB_SOCKETS.size()>1){
+            if(roomService.isEnough(roomName)){
                 //房间人数已满
                 WEB_SOCKETS.add(this);
                 Map<String,Object> map=Maps.newHashMap();
@@ -102,6 +101,18 @@ public class WebSocket {
                 WEB_SOCKETS.add(this);
                 count++;
                 isUser=true;
+                Room room=roomService.getRoom(roomName);
+                if(null == room){
+                    boolean flag=roomService.createRoom(roomName,username);
+                    if(!flag){
+                        onClose();
+                    }
+                }else {
+                    boolean flag = roomService.joinRoom(roomName, username);
+                    if(!flag){
+                        onClose();
+                    }
+                }
                 this.user.setUserRecord(new UserRecord(-1,-1));
                 Map<String,Object> map1=Maps.newHashMap();
                 map1.put("messageType",1);
@@ -211,12 +222,12 @@ public class WebSocket {
                 map.put("otherName",otherName());
                 String message="1";
                 Room room=roomService.getRoom(this.roomName);
-                if(room.getUser()==this.user.getUsername()){
+                if(room.getUser().equals(this.user.getUsername())){
                     roomService.deleteRoom(this.roomName);
                     message="";
                 }
-                else if(room.getUser()==null&&room.getAnotherUser()==null){
-                    roomService.deleteRoom(this.roomName);
+                else{
+                    roomService.getOut(user.getUsername(),this.roomName);
                 }
                 map.put("message",message);
                 sendMessageAll(JSON.toJSONString(map));

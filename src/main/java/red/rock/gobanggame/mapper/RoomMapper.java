@@ -64,4 +64,12 @@ public interface RoomMapper {
     @Delete("delete from room where room_name=#{roomName}")
     void deleteRoom(String roomName);
 
+    /**
+     * 另一位用户离开房间
+     */
+    @Update("update room set another_user=null where room_name=#{roomName}")
+    void getOut(String anotherName,String roomName);
+
+
+
 }

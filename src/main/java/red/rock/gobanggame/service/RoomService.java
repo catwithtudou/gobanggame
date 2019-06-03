@@ -75,4 +75,26 @@ public class RoomService {
         room=roomMapper.getRoom(roomName);
         return room;
     }
+
+    /**
+     * 用户离开房间
+     */
+    public void getOut(String anotherName,String roomName){
+        roomMapper.getOut(anotherName,roomName);
+    }
+
+    /**
+     * 查询房间人数是否已满
+     */
+    public boolean isEnough(String roomName){
+        Room room=roomMapper.getRoom(roomName);
+        boolean flag=true;
+        if(null == room){
+            flag = false;
+        }
+        else if(null == room.getUser() || null == room.getAnotherUser()){
+            flag=false;
+        }
+        return flag;
+    }
 }

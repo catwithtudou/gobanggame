@@ -38,7 +38,8 @@
 <script type="text/javascript">
    var webSocket;
    if("WebSocket" in window){
-       webSocket=new WebSocket("ws://129.28.185.138:8080/websocket/"+document.getElementById("roomName").value+"/"+document.getElementById("username").value);
+       //129.28.185.138
+       webSocket=new WebSocket("ws://localhost:8080/websocket/"+document.getElementById("roomName").value+"/"+document.getElementById("username").value);
        webSocket.onopen=function () {
            setMessageInnerHTML("连接房间成功");
        };
