@@ -102,22 +102,19 @@ public class GoBangUtil {
    }
 
     public static void main(String[] args) {
-        List<Integer> list=new ArrayList<>();
-        list.add(1);
-        list.add(3);
-        list.add(222);
-        list.add(5);
-        list.add(14);
-        list.add(7);
-        list.add(11);
-        list.add(12);
-        list.add(13);
-        list.add(51);
-        list.add(15);
-        boolean flag=isList(list);
-        if(flag){
-            System.out.println(111);
+        Map<String,String> map=new HashMap<>();
+        List<SeatRecord> seatRecords=new ArrayList<>();
+        System.out.println(seatRecords.size());
+        if(seatRecords == null){
+            System.out.println(11);
         }
+//        map.put("1","11");
+//        map.put("1","21");
+//        System.out.println(map.get("1"));
+//
+//        if("11".equals(null)){
+//            System.out.println(11);
+//        }
     }
 
 }

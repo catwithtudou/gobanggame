@@ -40,7 +40,7 @@ public class RoomController {
             if(null==room) {
                 response.getWriter().print("<script>alert('创建房间成功');window.location.href='/websocket/" + roomName + "/" + username + "';</script>");
             }else{
-                response.getWriter().print("<script>alert('房间名已存在,请重新输入');</script>");
+                response.getWriter().print("<script>alert('房间名已存在,请重新输入');history.back();</script>");
             }
         }
     }
@@ -57,7 +57,7 @@ public class RoomController {
                if(room!=null) {
                    response.getWriter().print("<script>alert('加入房间成功');window.location.href='/websocket/" + roomName + "/" + username + "';</script>");
                }else {
-                   response.getWriter().print("<script>alert('房间名不存在')</script>");
+                   response.getWriter().print("<script>alert('房间名不存在');history.back();</script>");
                }
         }
     }

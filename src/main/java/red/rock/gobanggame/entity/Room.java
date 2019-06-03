@@ -1,6 +1,10 @@
 package red.rock.gobanggame.entity;
 
 import lombok.Data;
+import red.rock.gobanggame.controller.WebSocket;
+
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * TODO

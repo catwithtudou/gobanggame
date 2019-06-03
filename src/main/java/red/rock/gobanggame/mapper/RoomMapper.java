@@ -56,7 +56,7 @@ public interface RoomMapper {
      *  用户进入房间
      */
     @Update("update room set another_user=#{anotherName} where room_name=#{roomName}")
-    void getIn(String anotherName,String roomName);
+    void getIn(String roomName,String anotherName);
 
     /**
      * 删除房间

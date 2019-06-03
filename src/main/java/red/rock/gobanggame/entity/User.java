@@ -1,6 +1,7 @@
 package red.rock.gobanggame.entity;
 
 import lombok.Data;
+import red.rock.gobanggame.controller.WebSocket;
 
 /**
  * TODO
@@ -16,6 +17,7 @@ public class User {
     private String username;
     private String password;
     private UserRecord userRecord;
+    private WebSocket webSocket;
 
     public User(){
 

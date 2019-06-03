@@ -6,6 +6,9 @@ import com.google.common.collect.Maps;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import red.rock.gobanggame.config.HttpSessionConfigurator;
 import red.rock.gobanggame.config.MyApplicationContextAware;
 import red.rock.gobanggame.entity.Room;
 import red.rock.gobanggame.entity.SeatRecord;
@@ -34,7 +37,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
  * @date 2019/6/1 14:44
  **/
 @Component
-@ServerEndpoint("/websocket/{roomName}/{username}")
+@ServerEndpoint(value = "/websocket/{roomName}/{username}",configurator = HttpSessionConfigurator.class)
 public class WebSocket {
 
     protected RoomService roomService=(RoomService) MyApplicationContextAware.getApplicationContext().getBean("roomService");
@@ -44,6 +47,7 @@ public class WebSocket {
      */
     private String roomName;
 
+
     /**
      * WebSocket对象
      */
@@ -52,7 +56,7 @@ public class WebSocket {
     /**
      * 房间Map对象
      */
-    private static final Map<String,CopyOnWriteArraySet> ROOM_MAP=new HashMap<>();
+    private static final Map<String,CopyOnWriteArraySet<WebSocket>> ROOM_MAP=new HashMap<>();
 
     /**
      * 在线人数
@@ -69,15 +73,12 @@ public class WebSocket {
      */
     private User user=new User();
 
-    /**
-     * 棋子信息
-     */
-    private static List<SeatRecord> seatRecords=new ArrayList<>();
 
     /**
-     * 是否为游戏玩家
+     * 房间棋子信息
      */
-    private boolean isGame;
+    private final static Map<String,List<SeatRecord>> ROOM_LIST=new HashMap<>();
+
 
     /**
      * 是否为房间内玩家
@@ -85,11 +86,26 @@ public class WebSocket {
     private boolean isUser;
 
     @OnOpen
-    public void onOpen(@PathParam("username")String username,@PathParam("roomName")String roomName,Session  session){
+    public void onOpen(@PathParam("username")String username,@PathParam("roomName")String roomName,Session  session,EndpointConfig config)throws IOException{
         this.session=session;
+        HttpSession httpSession=(HttpSession) config.getUserProperties().get(HttpSession.class.getName());
+        String isUserName=(String) httpSession.getAttribute("user");
+        if(!isUserName.equals(username)){
+            try{
+                Map<String, Object> map1 = Maps.newHashMap();
+                map1.put("messageType", 5);
+                map1.put("message", 5);
+                WEB_SOCKETS.add(this);
+                sendMessageToMe(JSON.toJSONString(map1));
+                WEB_SOCKETS.remove(this);
+                return;
+            }catch (IOException e){
+                e.printStackTrace();
+            }
+        }
         this.user.setUsername(username);
         this.roomName=roomName;
-        this.isGame=false;
+        this.user.setWebSocket(this);
         //服务端messageType 1:进入房间  2:退出房间 3.开始游戏 4.结束游戏 5.错误 6.在线人数名单 7,棋子情况
         //错误 : 1:游戏人数已满  2:此位置已被选中 3:对方还没有落棋 4:部分玩家未准备
         try{
@@ -100,7 +116,7 @@ public class WebSocket {
                 map.put("messageType",5);
                 map.put("message",1);
                 isUser=false;
-                sendMessageTo(JSON.toJSONString(map),username);
+                sendMessageToMe(JSON.toJSONString(map));
                 WEB_SOCKETS.remove(this);
             }else{
                 WEB_SOCKETS.add(this);
@@ -113,21 +129,32 @@ public class WebSocket {
                         onClose();
                     }
                 }else {
-                    boolean flag = roomService.joinRoom(roomName, username);
+                    boolean flag = roomService.joinRoom(roomName,username);
                     if(!flag){
                         onClose();
                     }
                 }
+
+                if(!ROOM_MAP.containsKey(this.roomName)){
+                    CopyOnWriteArraySet<WebSocket> set=new CopyOnWriteArraySet<>();
+                    set.add(this);
+                     ROOM_MAP.put(roomName,set);
+                }else{
+                    CopyOnWriteArraySet<WebSocket> set=ROOM_MAP.get(this.roomName);
+                    set.add(this);
+                    ROOM_MAP.put(roomName,set);
+                }
+
                 this.user.setUserRecord(new UserRecord(-1,-1));
                 Map<String,Object> map1=Maps.newHashMap();
                 map1.put("messageType",1);
                 map1.put("username",username);
                 sendMessageAll(JSON.toJSONString(map1));
                 Map<String,Object> map2=Maps.newHashMap();
-                String otherName=otherName();
                 map2.put("messageType",6);
                 map2.put("username",username);
-                map2.put("otherName",otherName);
+                map2.put("otherName",otherName());
+                //System.out.println(otherName());
                 sendMessageAll(JSON.toJSONString(map2));
             }
         }catch (Exception e){
@@ -142,12 +169,12 @@ public class WebSocket {
             //客户端messageType 1:准备工作 2:下棋工作 3:开始游戏
             String messageType=jsonObject.getString("messageType");
             if("3".equals(messageType)) {
+                count++;
                 if (isStart()) {
                     Map<String, Object> map1 = Maps.newHashMap();
                     map1.put("messageType", 3);
                     map1.put("message", "游戏开始");
                     StartSort();
-                    isGame=true;
                     map1.put("color", user.getUserRecord().getColor());
                     map1.put("sort", user.getUserRecord().getIsAllow());
                     Map<String,Object> map2=Maps.newHashMap();
@@ -175,7 +202,11 @@ public class WebSocket {
                         String y=jsonObject.getString("y");
                         String color=jsonObject.getString("color");
                         SeatRecord seatRecord=new SeatRecord(Integer.parseInt(x),Integer.parseInt(y),Integer.parseInt(color));
-                        if(!isExist(seatRecords,seatRecord)){
+                        List<SeatRecord> seatRecords=new ArrayList<>();
+                        if(ROOM_LIST.containsKey(roomName)){
+                            seatRecords=ROOM_LIST.get(roomName);
+                        }
+                        if( !isExist(seatRecords,seatRecord)){
                             seatRecords.add(seatRecord);
                             Map<String,Object> map1=Maps.newHashMap();
                             map1.put("messageType",7);
@@ -184,6 +215,7 @@ public class WebSocket {
                             map1.put("color",color);
                             changeSort();
                             sendMessageAll(JSON.toJSONString(map1));
+                            ROOM_LIST.put(roomName,seatRecords);
                             boolean flag=GoBangUtil.goBang(seatRecords,seatRecord);
                             if(flag){
                                 Map<String,Object> map=Maps.newHashMap();
@@ -217,76 +249,109 @@ public class WebSocket {
 
     @OnClose
     public void onClose()throws IOException{
-        WEB_SOCKETS.remove(this);
-        count--;
         //messageType 1:进入房间  2:退出房间
             if(isUser) {
                 Map<String, Object> map = Maps.newHashMap();
                 map.put("messageType", 2);
                 map.put("username", user.getUsername());
-                map.put("otherName",otherName());
                 String message="1";
                 Room room=roomService.getRoom(this.roomName);
-                if(room.getUser().equals(this.user.getUsername())){
+
+
+                if(null == room){
+                }
+                else if(this.user.getUsername().equals(room.getUser())){
                     roomService.deleteRoom(this.roomName);
                     message="";
+                    map.put("otherName",otherName());
+                    map.put("message",message);
+                    sendMessageTo(JSON.toJSONString(map),otherName());
+                    ROOM_MAP.remove(this.roomName);
+                    ROOM_LIST.remove(this.roomName);
                 }
                 else{
+                    map.put("message",message);
+                    sendMessageAll(JSON.toJSONString(map));
+                    CopyOnWriteArraySet<WebSocket> set=ROOM_MAP.get(this.roomName);
+                    set.remove(this);
+                    ROOM_MAP.put(this.roomName,set);
+                    if (this.user.getUserRecord().getIsReady()==1&&otherReady()==1) {
+                        Map<String, Object> map1 = Maps.newHashMap();
+                        map1.put("messageType", 4);
+                        map1.put("isUser", true);
+                        map1.put("username",otherName());
+                        sendMessageTo(JSON.toJSONString(map1),otherName());
+                    }
+
+                    ROOM_LIST.remove(this.roomName);
                     roomService.getOut(user.getUsername(),this.roomName);
                 }
-                map.put("message",message);
-                sendMessageAll(JSON.toJSONString(map));
-                if (isGame) {
-                    Map<String, Object> map1 = Maps.newHashMap();
-                    map1.put("messageType", 4);
-                    map1.put("isUser", true);
-                    map1.put("username",otherName());
-                    sendMessageAll(JSON.toJSONString(map1));
-                }
+
+                WEB_SOCKETS.remove(this);
+                session.close();
+                count--;
             }
     }
 
 
 
-    private static void sendMessageAll(String message) throws IOException{
-        for (WebSocket webSocket : WEB_SOCKETS) {
-            synchronized (webSocket) {
+    private  void sendMessageAll(String message) throws IOException{
+        CopyOnWriteArraySet<WebSocket> webSockets=ROOM_MAP.get(this.roomName);
+        for (WebSocket webSocket : webSockets) {
+            if(webSocket.session.isOpen()) {
+                synchronized (webSocket) {
+                    webSocket.session.getBasicRemote().sendText(message);
+                }
+            }
+        }
+    }
+
+
+    private void sendMessageToMe(String message)throws IOException{
+        for (WebSocket webSocket:WEB_SOCKETS){
+            if(webSocket==this){
                 webSocket.session.getBasicRemote().sendText(message);
             }
         }
     }
 
+
     private void sendMessageTo(String message,String toUsername)throws IOException{
-        for(WebSocket webSocket:WEB_SOCKETS){
-            if(toUsername.equals(webSocket.user.getUsername())){
-                synchronized (webSocket) {
-                    webSocket.session.getAsyncRemote().sendText(message);
+        if(null !=toUsername) {
+            CopyOnWriteArraySet<WebSocket> webSockets = ROOM_MAP.get(this.roomName);
+            for (WebSocket webSocket : webSockets) {
+                if (toUsername.equals(webSocket.user.getUsername())) {
+                    synchronized (webSocket) {
+                        webSocket.session.getAsyncRemote().sendText(message);
+                    }
                 }
             }
         }
     }
 
     private boolean isStart(){
-        int count=0;
-        for(WebSocket webSocket:WEB_SOCKETS){
+        int countUser=0;
+        CopyOnWriteArraySet<WebSocket>webSockets=ROOM_MAP.get(this.roomName);
+        for(WebSocket webSocket:webSockets){
             if(webSocket.user.getUserRecord().getIsReady()==1){
-                count++;
+                countUser++;
             }
         }
         boolean flag=false;
-        if(count==2){
+        if(countUser==2){
             flag=true;
         }
         return flag;
     }
 
     private void StartSort(){
+        CopyOnWriteArraySet<WebSocket> webSockets=ROOM_MAP.get(this.roomName);
         int sort=GoBangUtil.randomStart();
         int i=0;
         if(sort==0){
             sort=-1;
         }
-        for(WebSocket webSocket:WEB_SOCKETS){
+        for(WebSocket webSocket:webSockets){
             if(i==0){
                 webSocket.user.getUserRecord().setColor(sort);
                 webSocket.user.getUserRecord().setIsAllow(sort);
@@ -300,25 +365,52 @@ public class WebSocket {
 
     private boolean isExist(List<SeatRecord> seatRecords1,SeatRecord seatRecord){
         boolean flag=false;
-        if(seatRecords1.contains(seatRecord)){
-            flag=true;
+        int x=seatRecord.getX();
+        int y=seatRecord.getY();
+        for(SeatRecord seatRecordd:seatRecords1){
+            if(seatRecordd.getX()==x&& seatRecordd.getY()==y){
+                flag=true;
+            }
         }
         return flag;
     }
 
     private String otherName(){
-        Room room=roomService.getRoom(roomName);
-        String anotherName=room.getAnotherUser();
+        CopyOnWriteArraySet<WebSocket> webSockets=ROOM_MAP.get(this.roomName);
+        String anotherName=null;
+        if(webSockets.size()>0) {
+            for (WebSocket webSocket : webSockets) {
+                if (!this.user.getUsername().equals(webSocket.user.getUsername())) {
+                    anotherName = webSocket.user.getUsername();
+                }
+            }
+        }
         return anotherName;
     }
 
     private void changeSort(){
-        for(WebSocket webSocket:WEB_SOCKETS){
+        CopyOnWriteArraySet<WebSocket> webSockets=ROOM_MAP.get(this.roomName);
+        for(WebSocket webSocket:webSockets){
             synchronized (webSocket) {
                 webSocket.user.getUserRecord().setIsAllow(-webSocket.user.getUserRecord().getIsAllow());
             }
         }
     }
+
+    private int otherReady(){
+        CopyOnWriteArraySet<WebSocket> webSockets=ROOM_MAP.get(this.roomName);
+        int otherReady=0;
+        if(webSockets.size()>0) {
+            for (WebSocket webSocket : webSockets) {
+                if (!this.user.getUsername().equals(webSocket.user.getUsername())) {
+                    otherReady = webSocket.user.getUserRecord().getIsReady();
+                }
+            }
+        }
+        return otherReady;
+    }
+
+
 }
 
 

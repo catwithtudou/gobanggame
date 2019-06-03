@@ -64,6 +64,10 @@
                if(message == 4){
                    setMessageInnerHTML("部分玩家未准备");
                }
+               if(message == 5){
+                   alert("请先登录");
+                   window.location.href='/login';
+               }
 
            } else if (messageType == 1) {
                var username=msg.username;
@@ -84,14 +88,14 @@
                    var message = msg.message;
                    if(message == ""){
                        alert("房主已退出,即将关闭房间");
-                       closeWebSocket();
                        window.location="/room";
+                   }else {
+                       $("#users").empty();
+                       $("#users").append("<span>" + document.getElementById("username").value + "</span>");
+                       sendUnReady();
+                       $("#startGame").css("display", "block");
+                       setMessageInnerHTML(username + "退出房间");
                    }
-                   $("#users").empty();
-                   $("#users").append("<span>" + otherName + "</span>");
-                   sendUnReady();
-                   $("#startGame").css("display","block");
-                   setMessageInnerHTML(username + "退出房间");
            }else if(messageType == 3){
                var message=msg.message;
                var color =msg.color;
