@@ -5,9 +5,6 @@ import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.Maps;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 import red.rock.gobanggame.config.HttpSessionConfigurator;
 import red.rock.gobanggame.config.MyApplicationContextAware;
 import red.rock.gobanggame.entity.Room;
@@ -15,17 +12,13 @@ import red.rock.gobanggame.entity.SeatRecord;
 import red.rock.gobanggame.entity.User;
 import red.rock.gobanggame.entity.UserRecord;
 import red.rock.gobanggame.service.RoomService;
-import red.rock.gobanggame.service.UserService;
 import red.rock.gobanggame.utils.GoBangUtil;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.websocket.*;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
-import java.io.PipedReader;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -40,7 +33,16 @@ import java.util.concurrent.CopyOnWriteArraySet;
 @ServerEndpoint(value = "/websocket/{roomName}/{username}",configurator = HttpSessionConfigurator.class)
 public class WebSocket {
 
-    protected RoomService roomService=(RoomService) MyApplicationContextAware.getApplicationContext().getBean("roomService");
+    private static RoomService roomService;
+
+
+    //private  static RoomService roomService=(RoomService) MyApplicationContextAware.getApplicationContext().getBean("roomService");
+
+
+    @Autowired
+    public void setChatService(RoomService roomService) {
+        WebSocket.roomService = roomService;
+    }
 
     /**
      * 房间号码
@@ -154,7 +156,6 @@ public class WebSocket {
                 map2.put("messageType",6);
                 map2.put("username",username);
                 map2.put("otherName",otherName());
-                //System.out.println(otherName());
                 sendMessageAll(JSON.toJSONString(map2));
             }
         }catch (Exception e){

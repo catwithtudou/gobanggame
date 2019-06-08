@@ -29,27 +29,27 @@ public class HtmlController {
     }
     @GetMapping("/login")
     public String login(){
-        return "/login.html";
+        return "login";
     }
 
     @GetMapping("/register")
     public String register(){
-        return "/register.html";
+        return "register";
     }
 
     @GetMapping("/room")
     public String room(){
-        return "room.html";
+        return "room";
     }
 
     @GetMapping("/createRoom")
     public String createRoom(){
-        return "createRoom.html";
+        return "createRoom";
     }
 
     @GetMapping("/joinRoom")
     public String joinRoom(){
-        return "joinRoom.html";
+        return "joinRoom";
     }
 
 }
