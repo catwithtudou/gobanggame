@@ -81,6 +81,11 @@ public class WebSocket {
      */
     private final static Map<String,List<SeatRecord>> ROOM_LIST=new HashMap<>();
 
+    /**
+     * 棋子上一次信息
+     */
+    private SeatRecord seatRecord;
+
 
     /**
      * 是否为房间内玩家
@@ -108,8 +113,8 @@ public class WebSocket {
         this.user.setUsername(username);
         this.roomName=roomName;
         this.user.setWebSocket(this);
-        //服务端messageType 1:进入房间  2:退出房间 3.开始游戏 4.结束游戏 5.错误 6.在线人数名单 7,棋子情况
-        //错误 : 1:游戏人数已满  2:此位置已被选中 3:对方还没有落棋 4:部分玩家未准备
+        //服务端messageType 1:进入房间  2:退出房间 3.开始游戏 4.结束游戏 5.错误 6.在线人数名单 7,棋子情况 8.悔棋 9.发送聊天内容
+        //错误 : 1:游戏人数已满  2:此位置已被选中 3:对方还没有落棋 4:部分玩家未准备 5:玩家未登陆  6:无法悔棋
         try{
             if(roomService.isEnough(roomName)){
                 //房间人数已满
@@ -167,7 +172,7 @@ public class WebSocket {
     public void onMessage(String message, Session session)throws Exception{
         try{
             JSONObject jsonObject=JSON.parseObject(message);
-            //客户端messageType 1:准备工作 2:下棋工作 3:开始游戏
+            //客户端messageType 1:准备工作 2:下棋工作 3:开始游戏 4.认负 5.悔棋 6.用户聊天室
             String messageType=jsonObject.getString("messageType");
             if("3".equals(messageType)) {
                 count++;
@@ -214,6 +219,7 @@ public class WebSocket {
                             map1.put("x",x);
                             map1.put("y",y);
                             map1.put("color",color);
+                            this.seatRecord=seatRecord;
                             changeSort();
                             sendMessageAll(JSON.toJSONString(map1));
                             ROOM_LIST.put(roomName,seatRecords);
@@ -237,6 +243,47 @@ public class WebSocket {
                         sendMessageTo(JSON.toJSONString(map),this.user.getUsername());
                     }
                 }
+            else if("4".equals(messageType)){
+                Map<String,Object> map=Maps.newHashMap();
+                map.put("messageType",4);
+                map.put("username",otherName());
+                sendMessageAll(JSON.toJSONString(map));
+            }
+            else if("5".equals(messageType)){
+                if(this.user.getUserRecord().getIsAllow()==-1){
+                    if(ROOM_LIST.size()!=0){
+                         Map<String,Object> map=Maps.newHashMap();
+                         map.put("messageType",8);
+                         map.put("color",this.user.getUserRecord().getColor());
+                         map.put("x",seatRecord.getX());
+                         map.put("y",seatRecord.getY());
+                         sendMessageAll(JSON.toJSONString(map));
+                        List<SeatRecord> seatRecords=ROOM_LIST.get(roomName);
+                        seatRecords.remove(seatRecord);
+                        ROOM_LIST.put(roomName,seatRecords);
+                        changeSort();
+                    }else{
+                        Map<String,Object> map=Maps.newHashMap();
+                        map.put("messageType",5);
+                        map.put("message",6);
+                        sendMessageTo(JSON.toJSONString(map),this.user.getUsername());
+                    }
+                }else{
+                    Map<String,Object> map=Maps.newHashMap();
+                    map.put("messageType",5);
+                    map.put("message",6);
+                    sendMessageTo(JSON.toJSONString(map),this.user.getUsername());
+                }
+            }
+            else if("6".equals(messageType)){
+                String getMessage=jsonObject.getString("message");
+                String getUsername=jsonObject.getString("username");
+                Map<String,Object> map=Maps.newHashMap();
+                map.put("messageType",9);
+                map.put("username",getUsername);
+                map.put("message",getMessage);
+                sendMessageAll(JSON.toJSONString(map));
+            }
         }catch (Exception e){
             e.printStackTrace();
         }

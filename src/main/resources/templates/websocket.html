@@ -23,22 +23,32 @@
     <button onclick="sendUnReady()" id="end" style="display:none;margin:0 auto;text-align: center;">取消准备</button>
     <br/>
     <button onclick="startGame()"  id="startGame" style="display:block;margin:0 auto;text-align: center;">开始游戏</button>
-    <from id="piece" style="display: none;margin: 0 auto;text-align: center;">
+    <br/>
+    <div style="margin: 0 auto;text-align: center;">
+    <input type="text" id="conversation" >
+    <button onclick="sendText()" >发送消息</button>
+    </div>
+    <br/>
+    <from id="piece" style="display: none;margin:0 auto;text-align: center;">
        x: <input type="text" id="x" style="width: 100px;">
        y: <input type="text" id="y" style="width: 100px;">
         <button onclick="sendSeat()">确定</button>
     </from>
+    <div  id="operation"  style="text-align: center;margin: 0 auto;display: none;">
+    <button onclick="sendLose()">认负</button>
+     <button onclick="sendBack()" >悔棋</button>
+    </div>
     <input type="text" id="color" style="display: none;"/>
 </div>
 <hr/>
-<div id="message" style="text-align: center;"></div>
+<div id="message" style="text-align: center;margin:0 auto;"></div>
 <input type="text" th:value="${username}" id="username" style="display:none;"/>
 <input type="text" th:value="${roomName}" id="roomName" style="display:none;"/>
 </body>
 <script type="text/javascript">
    var webSocket;
    if("WebSocket" in window){
-       //
+       //129.28.185.138
        webSocket=new WebSocket("ws://129.28.185.138:8080/websocket/"+document.getElementById("roomName").value+"/"+document.getElementById("username").value);
        webSocket.onopen=function () {
            setMessageInnerHTML("连接房间成功");
@@ -67,6 +77,9 @@
                if(message == 5){
                    alert("请先登录");
                    window.location.href='/login';
+               }
+               if(message == 6){
+                   setMessageInnerHTML("无法悔棋");
                }
 
            } else if (messageType == 1) {
@@ -105,6 +118,7 @@
                $("#end").css("display","none");
                $("#startGame").css("display","none");
                $("#piece").css("display","block");
+               $("#operation").css("display","block");
                setMessageInnerHTML("游戏开始");
                if(color == 1){
                    $('#color').val(color);
@@ -125,6 +139,7 @@
                $("#end").css("display","none");
                $("#startGame").css("display","block");
                $("#piece").css("display","none");
+               $("#operation").css("display","none");
            }else if(messageType == 7){
                var color=msg.color;
                var x=msg.x;
@@ -135,7 +150,18 @@
                    color = "白";
                }
                setMessageInnerHTML(color+":("+x+","+y+")");
-
+           }else if(messageType == 8){
+               var color=msg.color;
+               var x=msg.x;
+               var y=msg.y;
+               if(color == 1){
+                   color = "黑";
+               }else{
+                   color = "白";
+               }
+               setMessageInnerHTML(color+"悔棋,"+color+":("+x+","+y+")失效");
+           }else if(messageType == 9){
+               setMessageInnerHTML(msg.username+":"+msg.message);
            }
        };
 
@@ -199,6 +225,31 @@
            $("#x").val("");
            $("#y").val("");
        }
+   }
+
+   function sendText() {
+       var message={
+           "messageType":"6",
+           "message":document.getElementById('conversation').value,
+           "username":document.getElementById('username').value
+       };
+       webSocket.send(JSON.stringify(message));
+       $('#conversation').val("");
+   }
+
+   function sendLose() {
+       var message={
+           "messageType":"4",
+           "color":document.getElementById('color').value
+       };
+       webSocket.send(JSON.stringify(message));
+   }
+
+   function sendBack() {
+       var message={
+           "messageType":"5"
+       };
+       webSocket.send(JSON.stringify(message));
    }
    
    
